@@ -1,0 +1,68 @@
+---
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: openwebui
+  namespace: default
+  labels:
+    app: openwebui
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: openwebui
+  template:
+    metadata:
+      labels:
+        app: openwebui
+    spec:
+      dnsPolicy: "None" # You need to disable the cluster DNS
+      dnsConfig:
+        nameservers:
+          - 1.1.1.1
+        searches:
+          - svc.cluster.local
+      containers:
+        - name: openwebui
+          image: ghcr.io/open-webui/open-webui:cuda
+          imagePullPolicy: Always
+          env:
+            - name: OLLAMA_BASE_URL
+              value: http://192.168.1.110:32125
+            - name: COMFYUI_BASE_URL
+              value: http://192.168.1.110:32127
+            - name: ENABLE_IMAGE_GENERATION
+              value: "True"
+            - name: NVIDIA_VISIBLE_DEVICES
+              value: all
+            - name: NVIDIA_DRIVER_CAPABILITIES
+              value: all
+          ports:
+            - containerPort: 8080
+          volumeMounts:
+            - name: openwebui-config
+              mountPath: "/app/backend/data"
+      nodeName: (Node Name) # Change this to reflect the name of the node you intend to deploy to
+      volumes:
+        - name: openwebui-config
+          hostPath:
+              path: /mnt/ssd/openwebui # Change this to reflect the directory path you intent to persist the volume from
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: openwebui
+  namespace: default
+spec:
+  selector:
+    app: openwebui
+  ports:
+    - name: openwebui
+      protocol: TCP
+      port: 8080
+      nodePort: 32126
+  type: NodePort
+
